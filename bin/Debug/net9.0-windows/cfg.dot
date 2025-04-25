@@ -1,0 +1,17 @@
+digraph all_functions {
+subgraph cluster_main {
+   label="main";
+   main_0 [label="int main()", shape=oval];
+   main_0 -> main_1;
+   main_1 [label="int x = 0", shape=box];
+   main_1 -> main_2;
+   main_2 [label="x < 10", shape=diamond];
+   main_2 -> main_3 [color="green", label="True"];
+   main_2 -> main_4 [color="red", label="False"];
+   main_3 [label="x++", shape=box];
+   main_3 -> main_4;
+   main_4 [label="return x", shape=oval];
+}
+
+}
+

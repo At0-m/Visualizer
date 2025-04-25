@@ -1,0 +1,58 @@
+const dotDensityRenderer = new DotDensityRenderer({
+  // The number of units per dot
+  referenceDotValue: 100,
+  outline: null,
+  // When referenceScale is set, linearly scales the dot value
+  // based on the referenceDotValue. The layer view will draw
+  // dots using the value in referenceDotValue only at the scale
+  // specified here.
+  referenceScale: view.scale,
+  legendOptions: {
+    // Displays "1 dot = 100 people" in the legend
+    unit: "people"
+  },
+  attributes: [
+    {
+      // One red dot will be drawn for every 100 White people
+      field: "B03002_003E",
+      color: "#f23c3f",
+      label: "White (non-Hispanic)"
+    },
+    {
+      // One yellow dot will be drawn for every 100 Hispanic people
+      field: "B03002_012E",
+      color: "#e8ca0d",
+      label: "Hispanic"
+    },
+    {
+      field: "B03002_004E",
+      color: "#00b6f1",
+      label: "Black or African American"
+    },
+    {
+      field: "B03002_006E",
+      color: "#32ef94",
+      label: "Asian"
+    },
+    {
+      field: "B03002_005E",
+      color: "#ff7fe9",
+      label: "American Indian/Alaskan Native"
+    },
+    {
+      field: "B03002_007E",
+      color: "#e2c4a5",
+      label: "Pacific Islander/Hawaiian Native"
+    },
+    {
+      field: "B03002_008E",
+      color: "#ff6a00",
+      label: "Other race"
+    },
+    {
+      field: "B03002_009E",
+      color: "#96f7ef",
+      label: "Two or more races"
+    }
+  ]
+});

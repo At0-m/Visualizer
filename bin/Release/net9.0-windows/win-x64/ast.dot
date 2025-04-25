@@ -1,0 +1,29 @@
+digraph AST {
+a34[label="Function"];
+a35[label="int"];
+a34 -> a35[label = "type"]; 
+a36[label="main"];
+a34 -> a36[label = "name"]; 
+a37[label="Parameters"];
+a34 -> a37[label = "parameters"]; 
+a38[label="Body"];
+a34 -> a38[label = "body"]; 
+a40[label="int x=0"];
+a38 -> a40
+a38 -> a41
+a41[label="if "];
+a41 -> a42[label = "condition "]; 
+a43[label="x"];
+a44[label="10"];
+a42 -> a44
+a42 -> a43
+a42[label="<"];
+a41 -> a46[label = "if body"]; 
+a46[label="If Body"];
+a47[label="x"];
+a46 -> a47
+a47 -> a48
+a48[label="++"];
+a38 -> a49
+a49[label="retrun x"];
+}

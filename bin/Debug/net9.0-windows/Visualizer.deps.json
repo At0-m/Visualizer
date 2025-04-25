@@ -1,0 +1,89 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "Visualizer/1.0.0": {
+        "dependencies": {
+          "GraphViz.NET": "1.0.0",
+          "Scintilla5.NET": "6.0.1"
+        },
+        "runtime": {
+          "Visualizer.dll": {}
+        }
+      },
+      "GraphViz.NET/1.0.0": {
+        "runtime": {
+          "lib/net40/GraphVizWrapper.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Scintilla5.NET/6.0.1": {
+        "runtime": {
+          "lib/net6.0-windows7.0/Scintilla.NET.dll": {
+            "assemblyVersion": "6.0.1.0",
+            "fileVersion": "6.0.1.0"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win-arm64/native/Lexilla.dll": {
+            "rid": "win-arm64",
+            "assetType": "native",
+            "fileVersion": "5.4.3.0"
+          },
+          "runtimes/win-arm64/native/Scintilla.dll": {
+            "rid": "win-arm64",
+            "assetType": "native",
+            "fileVersion": "5.5.5.0"
+          },
+          "runtimes/win-x64/native/Lexilla.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "5.4.3.0"
+          },
+          "runtimes/win-x64/native/Scintilla.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "5.5.5.0"
+          },
+          "runtimes/win-x86/native/Lexilla.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "5.4.3.0"
+          },
+          "runtimes/win-x86/native/Scintilla.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "5.5.5.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Visualizer/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "GraphViz.NET/1.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-NktgbJpuFezT2yDAOaPC4FlmUfHOcTQc7THJn7+e6yEJslrHTbVo3nz3mvlrUJwdbSF8lHRFUopSLA2Cuag2Zw==",
+      "path": "graphviz.net/1.0.0",
+      "hashPath": "graphviz.net.1.0.0.nupkg.sha512"
+    },
+    "Scintilla5.NET/6.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-fncV8jc9NH7fjU62zDFkTWwZXGT5VRfLPYQup3mf4UEAiTvhPozwaxW2oloUtRbA3RHDEfHJi9LR13VQxSmOkA==",
+      "path": "scintilla5.net/6.0.1",
+      "hashPath": "scintilla5.net.6.0.1.nupkg.sha512"
+    }
+  }
+}

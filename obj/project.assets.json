@@ -1,0 +1,256 @@
+{
+  "version": 3,
+  "targets": {
+    "net9.0-windows7.0": {
+      "GraphViz.NET/1.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net40/GraphVizWrapper.dll": {}
+        },
+        "runtime": {
+          "lib/net40/GraphVizWrapper.dll": {}
+        }
+      },
+      "Scintilla5.NET/6.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0-windows7.0/Scintilla.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/Scintilla.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.WindowsDesktop.App.WindowsForms"
+        ],
+        "build": {
+          "build/scintilla5.net.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/win-arm64/native/Lexilla.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
+          "runtimes/win-arm64/native/Scintilla.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
+          "runtimes/win-x64/native/Lexilla.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x64/native/Scintilla.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/Lexilla.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          },
+          "runtimes/win-x86/native/Scintilla.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      }
+    },
+    "net9.0-windows7.0/win-x64": {
+      "GraphViz.NET/1.0.0": {
+        "type": "package",
+        "compile": {
+          "lib/net40/GraphVizWrapper.dll": {}
+        },
+        "runtime": {
+          "lib/net40/GraphVizWrapper.dll": {}
+        }
+      },
+      "Scintilla5.NET/6.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0-windows7.0/Scintilla.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0-windows7.0/Scintilla.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "frameworkReferences": [
+          "Microsoft.WindowsDesktop.App.WindowsForms"
+        ],
+        "native": {
+          "runtimes/win-x64/native/Lexilla.dll": {},
+          "runtimes/win-x64/native/Scintilla.dll": {}
+        },
+        "build": {
+          "build/scintilla5.net.targets": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "GraphViz.NET/1.0.0": {
+      "sha512": "NktgbJpuFezT2yDAOaPC4FlmUfHOcTQc7THJn7+e6yEJslrHTbVo3nz3mvlrUJwdbSF8lHRFUopSLA2Cuag2Zw==",
+      "type": "package",
+      "path": "graphviz.net/1.0.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Content/app.config.install.xdt",
+        "Content/web.config.install.xdt",
+        "graphviz.net.1.0.0.nupkg.sha512",
+        "graphviz.net.nuspec",
+        "lib/net40/GraphVizWrapper.dll",
+        "readme.txt"
+      ]
+    },
+    "Scintilla5.NET/6.0.1": {
+      "sha512": "fncV8jc9NH7fjU62zDFkTWwZXGT5VRfLPYQup3mf4UEAiTvhPozwaxW2oloUtRbA3RHDEfHJi9LR13VQxSmOkA==",
+      "type": "package",
+      "path": "scintilla5.net/6.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "build/scintilla5.net.targets",
+        "icon.png",
+        "lib/net462/Scintilla.NET.dll",
+        "lib/net462/Scintilla.NET.xml",
+        "lib/net6.0-windows7.0/Scintilla.NET.dll",
+        "lib/net6.0-windows7.0/Scintilla.NET.xml",
+        "runtimes/win-arm64/native/Lexilla.dll",
+        "runtimes/win-arm64/native/Scintilla.dll",
+        "runtimes/win-x64/native/Lexilla.dll",
+        "runtimes/win-x64/native/Scintilla.dll",
+        "runtimes/win-x86/native/Lexilla.dll",
+        "runtimes/win-x86/native/Scintilla.dll",
+        "scintilla5.net.6.0.1.nupkg.sha512",
+        "scintilla5.net.nuspec"
+      ]
+    }
+  },
+  "projectFileDependencyGroups": {
+    "net9.0-windows7.0": [
+      "GraphViz.NET >= 1.0.0",
+      "Scintilla5.NET >= 6.0.1"
+    ]
+  },
+  "packageFolders": {
+    "C:\\Users\\User\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "C:\\Users\\User\\source\\repos\\Visualizer\\Visualizer\\Visualizer.csproj",
+      "projectName": "Visualizer",
+      "projectPath": "C:\\Users\\User\\source\\repos\\Visualizer\\Visualizer\\Visualizer.csproj",
+      "packagesPath": "C:\\Users\\User\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\User\\source\\repos\\Visualizer\\Visualizer\\obj\\",
+      "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
+      "configFilePaths": [
+        "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+      ],
+      "originalTargetFrameworks": [
+        "net9.0-windows"
+      ],
+      "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "C:\\Program Files\\dotnet\\library-packs": {},
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net9.0-windows7.0": {
+          "targetAlias": "net9.0-windows",
+          "projectReferences": {}
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
+      },
+      "SdkAnalysisLevel": "9.0.200"
+    },
+    "frameworks": {
+      "net9.0-windows7.0": {
+        "targetAlias": "net9.0-windows",
+        "dependencies": {
+          "GraphViz.NET": {
+            "target": "Package",
+            "version": "[1.0.0, )"
+          },
+          "Scintilla5.NET": {
+            "target": "Package",
+            "version": "[6.0.1, )"
+          }
+        },
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
+            "version": "[9.0.4, 9.0.4]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Runtime.win-x64",
+            "version": "[9.0.4, 9.0.4]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+            "version": "[9.0.4, 9.0.4]"
+          }
+        ],
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          },
+          "Microsoft.WindowsDesktop.App.WindowsForms": {
+            "privateAssets": "none"
+          }
+        },
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
+      }
+    },
+    "runtimes": {
+      "win-x64": {
+        "#import": []
+      }
+    }
+  },
+  "logs": [
+    {
+      "code": "NU1701",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'GraphViz.NET 1.0.0' was restored using '.NETFramework,Version=v4.6.1, .NETFramework,Version=v4.6.2, .NETFramework,Version=v4.7, .NETFramework,Version=v4.7.1, .NETFramework,Version=v4.7.2, .NETFramework,Version=v4.8, .NETFramework,Version=v4.8.1' instead of the project target framework 'net9.0-windows7.0'. This package may not be fully compatible with your project.",
+      "libraryId": "GraphViz.NET",
+      "targetGraphs": [
+        "net9.0-windows7.0"
+      ]
+    }
+  ]
+}
