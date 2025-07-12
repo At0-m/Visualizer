@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -50,6 +50,7 @@ namespace Visualizer
         {
             public int Ival;
             public float Fval;
+            public double Dval;
         }
 
         public Token()
