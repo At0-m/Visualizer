@@ -1,0 +1,1 @@
+The paper presents a tool for visualizing the behavior of C programs, which forms an abstract syntax tree (AST) and a control flow graph (CFG). The goal is to simplify code analysis and debugging, which helps to identify errors more effectively. The result is a prototype that improves understanding and testing of the source code.
