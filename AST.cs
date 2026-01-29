@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,6 +26,7 @@ namespace Visualizer
         public ASTNode shortTypeNode { get; }
         public ASTNode charTypeNode { get; }
         public ASTNode floatTypeNode { get; }
+        public ASTNode doubleTypeNode { get; }
 
         List<StructTypeNode> stuctTypes;
         List<UnionTypeNode> unionTypes;
@@ -38,7 +41,7 @@ namespace Visualizer
             longTypeNode = Tools.ASSIGN_NODE(longTypeNode, new IntTypeNode(8, true));
             unsignedTypeNode = Tools.ASSIGN_NODE(unsignedTypeNode, new IntTypeNode(4, false));
             floatTypeNode = Tools.ASSIGN_NODE(floatTypeNode, new NormalTypeNode(4, false));
-
+            doubleTypeNode = Tools.ASSIGN_NODE(doubleTypeNode, new NormalTypeNode(8, true));
             currFD = null;
             currRecordObj = null;
             errros = warnings = 0;
@@ -184,6 +187,40 @@ namespace Visualizer
                     }
                 case ASTNodeType.ASTNT_NONE_TYPE: return stb.NoType;
                 default: return stb.NoType;
+            }
+        }
+    }
+    static class ASTHelpers
+    {
+        public static IEnumerable<ASTNode> Children(this ASTNode node)
+        {
+            if (node == null || node is NullNode) yield break;
+
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public;
+            var members = node.GetType().GetMembers(flags).Where(m => m is PropertyInfo or FieldInfo);
+
+            foreach (var m in members)
+            {
+                object value = m switch
+                {
+                    PropertyInfo pi => pi.GetValue(node),
+                    FieldInfo fi => fi.GetValue(node),
+                    _ => null
+                };
+
+                switch (value)
+                {
+                    case null:
+                        break;
+                    case ASTNode child when child != NullNode.Instance:
+                        yield return child;
+                        break;
+                    case IEnumerable list:
+                        foreach (var el in list)
+                            if (el is ASTNode n && n != NullNode.Instance)
+                                yield return n;
+                        break;
+                }
             }
         }
     }

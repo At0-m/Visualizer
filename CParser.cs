@@ -153,7 +153,6 @@ namespace Visualizer
                 GetToken();
                 list.Add(GenericAssociation());
             }
-            //allSeq.Add(list);
             return list;
         }
 
@@ -179,7 +178,6 @@ namespace Visualizer
             SequenceTypeNode association = new SequenceTypeNode();
             association.Add(specOrDefault);
             association.Add(assocExpr);
-            //allSeq.Add(association);
             return association;
         }
 
@@ -197,7 +195,8 @@ namespace Visualizer
             {
                 case TokenType.IDENT:
                     GetToken();
-                    RequireDeclared(tok.Name, tok.Line);
+                    if(!MacroTable.Contains(tok.Name))
+                        RequireDeclared(tok.Name, tok.Line);
                     node = new IdentNode(tok.Name, tok.Line);
                     break;
                 case TokenType.INT_LIT:
@@ -322,7 +321,6 @@ namespace Visualizer
                 GetToken();
                 args.Add(AssignmentExpression());
             }
-            //allSeq.Add(args);
 
             return args;
         }
@@ -724,7 +722,6 @@ namespace Visualizer
                 GetToken();
                 seq.Add(AssignmentExpression());
             }
-            //allSeq.Add(seq);
 
             return seq.size() == 1 ? seq.elements[0] : seq;
         }
@@ -786,7 +783,11 @@ namespace Visualizer
         private ASTNode InitDeclarator(ASTNode type)
         {
             ASTNode init = NullNode.Instance;
-            VarDeclNode declr = new VarDeclNode(type, Declarator(ref type));
+
+            ASTNode name = Declarator(ref type);
+
+            // 2. Теперь type  корректный (array, pointer, function…)
+            VarDeclNode declr = new VarDeclNode(type, name);
 
             if (sym == TokenType.ASSIGN)
             {
@@ -839,9 +840,10 @@ namespace Visualizer
                 TypeKind.TK_UNSIGNED => ast.unsignedTypeNode,
                 TypeKind.TK_LONG => ast.longTypeNode,
                 TypeKind.TK_FLOAT => ast.floatTypeNode,
-                TypeKind.TK_DOUBLE => NullNode.Instance,
+                TypeKind.TK_DOUBLE => ast.doubleTypeNode,
                 TypeKind.TK_VOID => ast.voidTypeNode,
-                TypeKind.TK_ARRAY => NullNode.Instance,
+                TypeKind.TK_ARRAY => new ArrayTypeNode(TypeToNode(ast, type.ElType ?? type.BaseType, name), 
+                         type.Size > 0 ? new IntConstNode((int)type.Size) : NullNode.Instance),
                 TypeKind.TK_STRUCT => new StructTypeNode(new IdentNode(name), NullNode.Instance),
                 TypeKind.TK_UNION => NullNode.Instance,
                 TypeKind.TK_BOOL => NullNode.Instance,
@@ -884,7 +886,10 @@ namespace Visualizer
                 GetToken();
                 return ast.floatTypeNode;
             }
-            else if (sym == TokenType.DOUBLE) GetToken();
+            else if (sym == TokenType.DOUBLE) {
+                GetToken();
+                return ast.doubleTypeNode;
+            }
             else if (sym == TokenType.SIGNED) GetToken();
             else if (sym == TokenType.UNSIGNED)
             {
@@ -1013,7 +1018,11 @@ namespace Visualizer
             return decllist;
         }
 
-        private ASTNode StructDeclarator(ASTNode typeSec) => new FieldDecNode(typeSec, Declarator(ref typeSec));
+        private ASTNode StructDeclarator(ASTNode typeSec)
+        {
+            ASTNode name = Declarator(ref typeSec);
+            return new FieldDecNode(typeSec, name);
+        }
 
         private ASTNode EnumSpecifier()
         {
@@ -1179,7 +1188,7 @@ namespace Visualizer
                         expr = Expression();
                         typeSpec = new ArrayTypeNode(typeSpec, expr);
                     }
-                    else typeSpec = new PointerTypeNode(typeSpec);
+                    else typeSpec = new ArrayTypeNode(typeSpec, NullNode.Instance);
                     check(TokenType.RBRACK);
                     //GetToken();
                 }
@@ -1533,9 +1542,7 @@ namespace Visualizer
 
             while (sym != TokenType.RBRACE && sym != TokenType.EOF)
             {
-                if (isStorageClassSpecifier(sym) ||
-                    isTypeQuilifer(sym) ||
-                    isTypeSpecifiar(sym, 1))
+                if (isStorageClassSpecifier(sym) || isTypeQuilifer(sym) || isTypeSpecifiar(sym, 1))
                 {
                     ASTNode declSpec = DeclrSpecifiers();
                     ASTNode decl;
@@ -1837,20 +1844,21 @@ namespace Visualizer
 
             if (GetLATok(2) == TokenType.LPAR || GetLATok(3) == TokenType.LPAR)
                 return FunctionDef(declSpec);
+
+            ASTNode decl;
+            if (inTypeDef)
+            {
+                inTypeDef = false;
+                decl = new TypeDeclNode(Declarator(ref declSpec), declSpec);
+                decl.Declare(ast);
+                check(TokenType.SEMICOLON);
+            }
             else
             {
-                ASTNode decl = NullNode.Instance;
-                if (inTypeDef)
-                {
-                    inTypeDef = false;
-                    decl = new TypeDeclNode(Declarator(ref declSpec), declSpec);
-                    decl.Declare(ast);
-                    check(TokenType.SEMICOLON);
-                }
-                else decl = Declaration(declSpec);
-
-                return decl;
+                decl = Declaration(declSpec);
+                decl.Declare(ast);
             }
+            return decl;
         }
         private ASTNode FunctionDef(ASTNode funcType)
         {
@@ -1895,6 +1903,7 @@ namespace Visualizer
         }
         public override void parse(string output)
         {
+            MacroTable.Clear();
             ASTNode tree = NullNode.Instance;
 
             lexer.GetNextChar();

@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Linq;
 using System.Reflection.Emit;
+using System.Text;
+using static Visualizer.UBAnalyzer;
 
 namespace Visualizer
 {
@@ -10,9 +11,11 @@ namespace Visualizer
     {
         public static Dictionary<string, ControlFlowGraph> FunctionCFGs { get; }
             = new Dictionary<string, ControlFlowGraph>();
-
+        public static Dictionary<string, (ControlFlowGraph cfg, CFGNode target)>
+            GlobalSetjmps = new();
         public static void BuildAll(ASTNode root)
         {
+            FunctionCFGs.Clear();
             if (root is SequenceTypeNode seq)
             {
                 foreach (var child in seq.elements)
@@ -45,7 +48,7 @@ namespace Visualizer
         public int Id { get; set; }
         public List<ASTNode> Statements { get; }
         public List<CFGNode> Successors { get; }
-
+        public readonly List<UbWarn> Warnings = new();
         public CFGNode(int id)
         {
             Id = id;
@@ -136,8 +139,14 @@ namespace Visualizer
                 //idents and consts 
                 case ASTNodeType.ASTNT_IDENT_NODE:
                     {
-                        var n = (IdentNode)node;
-                        return n.val;
+                        var id = (IdentNode)node;
+                        if (MacroTable.TryGet(id.val, out var m))
+                        {
+                            if (!m.HasIdents && m.Length <= MacroTable.INLINE_LIMIT)
+                                return string.Join(" ", m.Body.Select(t => t.Name ?? t.Type.ToString()));
+                            return id.val;
+                        }
+                        return id.val;
                     }
 
                 case ASTNodeType.ASTNT_INTEGER_CONST:
@@ -151,7 +160,11 @@ namespace Visualizer
                         var n = (StringConstNode)node;
                         return n.val;
                     }
-
+                case ASTNodeType.ASTNT_REAL_CONST:
+                    {
+                        var n = (NormalConstNode)node;
+                        return n.val.ToString();
+                    }
                 case ASTNodeType.ASTNT_CHAR_CONST:
                     {
                         var n = (CharConstNode)node;
@@ -206,7 +219,8 @@ namespace Visualizer
                 //unary
                 case ASTNodeType.ASTNT_NEGATE_EXPR:
                     {
-                        return "-" + BuildLabel(node);
+                        var n = (NegateExprNode)node;
+                        return "-" + BuildLabel(n.expr);
                     }
 
                 case ASTNodeType.ASTNT_BIT_NOT_EXPR:
@@ -543,7 +557,7 @@ namespace Visualizer
             }
         }
 
-        public string ToDot(string prefix = "", bool isSubgraph = false)
+        public string ToDot(string prefix = "", bool isSubgraph = false, bool emitNotes = true)
         {
             string clusterName = prefix.TrimEnd('_');
 
@@ -569,7 +583,9 @@ namespace Visualizer
                 }
                 else
                 {
-                    label = $"Node {node.Id}";
+                    var labStmt = node.Statements.FirstOrDefault(s => s.Type == ASTNodeType.ASTNT_LABEL_STMT);
+
+                    label = labStmt != null ? BuildLabel(labStmt) : $"Node {node.Id}"; 
                 }
 
                 label = DotHelpers.Escape(label);
@@ -611,7 +627,8 @@ namespace Visualizer
 
                 string nodeId = prefix + node.Id;
 
-                sb.AppendLine($"   {nodeId} [label=\"{label}\", shape={shape}];");
+                string warnColor = node.Warnings.Count > 0 ? ", color=red, fontcolor=red" : "";
+                sb.AppendLine($"   {nodeId} [label=\"{label}\", shape={shape}{warnColor}];");
 
                 if (isCondition && node.Successors.Count == 2)
                 {
@@ -630,7 +647,18 @@ namespace Visualizer
                     }
                 }
             }
-
+            if (emitNotes)
+            {
+                foreach (var node in nodes)
+                {
+                    if (node.Warnings.Count == 0) continue;
+                    sb.AppendLine($"   {prefix}{node.Id}_warn [shape=note, "
+                        + $"label=\"{DotHelpers.Escape(string.Join("\\n", node.Warnings.Select(w => w.Msg)))}\", "
+                        + "color=red, fontcolor=red];");
+                    sb.AppendLine($"   {prefix}{node.Id}_warn -> {prefix}{node.Id} "
+                        + "[style=dotted, color=red, arrowhead=none];");
+                }
+            }
             sb.AppendLine("}");
 
             return sb.ToString();
@@ -655,6 +683,9 @@ namespace Visualizer
         private CFGNode switchCFGNode;
         private bool FlagReturn = false;
 
+        private readonly Dictionary<string, CFGNode> labelTable = new();
+        private readonly List<(CFGNode from, string label)> pendingGotos = new();
+
         private sealed class SwitchCtx
         {
             public bool HasDefault = false;
@@ -675,6 +706,10 @@ namespace Visualizer
             foreach (var pred in pendingJoins)
                 cfg.AddEdge(pred, target);
             pendingJoins.Clear();
+        }
+        private CFGNode EnsureCurrentNode()
+        {
+            return currentNode ??= cfg.CreateNode();
         }
         private void Visit(ASTNode node)
         {
@@ -716,6 +751,10 @@ namespace Visualizer
 
                 case ASTNodeType.ASTNT_ASM_STMT:
                     VisitAsmStmt(node);
+                    break;
+
+                case ASTNodeType.ASTNT_GOTO_STMT:
+                    VisitGoto((GotoStmtNode)node);
                     break;
 
                 case ASTNodeType.ASTNT_BREAK_STMT:
@@ -772,8 +811,15 @@ namespace Visualizer
 
         private void VisitIfStmt(IfStmtNode ifNode)
         {
-            var condNode = EmitSimpleNode(ifNode);   
+            var condNode = EmitSimpleNode(ifNode);
 
+            //if (ifNode.condition is CallExprNode se && se.expr is IdentNode seName && seName.val == "setjmp")
+            //{
+            //    string key = ControlFlowGraph.BuildLabel(
+            //                    ((SequenceTypeNode)se.args)?.elements[0] ?? NullNode.Instance);
+
+            //    ProgramCFG.GlobalSetjmps[key] = (condNode, condNode);
+            //}
             currentNode = null;
             int thenStart = cfg.Nodes.Count;
             Visit(ifNode.ifClause);                  
@@ -937,10 +983,28 @@ namespace Visualizer
                 cfg.AddEdge(fall, entry);
         }
 
-        private void VisitLabelStmt(LabelStmtNode labelNode)
+        private void VisitLabelStmt(LabelStmtNode n)
         {
-            var labelCFGNode = EmitSimpleNode(labelNode);
-            Visit(labelNode.stmt);
+            var blk = currentNode ?? cfg.CreateNode();
+            
+            if (blk != currentNode)
+            {
+                if (currentNode != null)
+                    cfg.AddEdge(currentNode, blk);
+                else
+                    FlushPending(blk);
+            }
+
+            blk.AddStatement(n);
+
+            if (n.label is IdentNode id)
+            {
+                labelTable[id.val] = blk;
+                ResolvePendingGotos(id.val, blk);
+            }
+
+            currentNode = blk;
+            Visit(n.stmt);
         }
 
         private void VisitAsmStmt(ASTNode asmNode)
@@ -948,6 +1012,31 @@ namespace Visualizer
             EmitSimpleNode(asmNode);
         }
 
+        private void VisitGoto(GotoStmtNode g)
+        {
+            var blk = EnsureCurrentNode();
+            blk.AddStatement(g);
+
+            if (g.label is IdentNode id)
+            {
+                if (labelTable.TryGetValue(id.val, out var dst))
+                    cfg.AddEdge(blk, dst, "goto");
+                else
+                    pendingGotos.Add((blk, id.val));
+            }
+
+            currentNode = null;
+        }
+
+        private void ResolvePendingGotos(string lbl, CFGNode dst)
+        {
+            for (int i = pendingGotos.Count - 1; i >= 0; --i)
+                if (pendingGotos[i].label == lbl)
+                {
+                    cfg.AddEdge(pendingGotos[i].from, dst, "goto");
+                    pendingGotos.RemoveAt(i);
+                }
+        }
         private void VisitBreakStmt(ASTNode brkAst)
         {
             var brkNode = EmitSimpleNode(brkAst);
@@ -988,20 +1077,56 @@ namespace Visualizer
         }
         private CFGNode EmitSimpleNode(ASTNode stmt)
         {
-            if (stmt == null || stmt is NullNode)
-                return currentNode;
+            if (stmt == null || stmt is NullNode) return currentNode;
 
             var node = cfg.CreateNode();
             node.AddStatement(stmt);
 
             if (currentNode != null)
-            {
                 cfg.AddEdge(currentNode, node);
-            }
-            else
+            else if (switchStack.Count == 0)
+                FlushPending(node);
+
+            if (stmt.Type == ASTNodeType.ASTNT_CALL_EXPR)
             {
-                if (switchStack.Count == 0)
-                    FlushPending(node);
+                var call = (CallExprNode)stmt;
+                if (call.expr is IdentNode callee)
+                {
+                    var name = callee.val;
+                    var key = ControlFlowGraph.BuildLabel(
+                                   ((SequenceTypeNode)call.args)?.elements[0]
+                                   ?? NullNode.Instance);
+
+                    if (name == "setjmp")
+                    {
+                        var afterSetjmp = cfg.CreateNode();
+                        cfg.AddEdge(node, afterSetjmp, "0");
+                        ProgramCFG.GlobalSetjmps[key] = (cfg, afterSetjmp);
+
+                        currentNode = afterSetjmp;
+                        return node;
+                    }
+
+                    if (name == "longjmp")
+                    {
+                        if (ProgramCFG.GlobalSetjmps.TryGetValue(key, out var info))
+                        {
+                            if (info.cfg == cfg)
+                            {
+                                cfg.AddEdge(node, info.target, "longjmp");
+                            }
+                            else
+                            {
+                                var proxy = cfg.CreateNode();
+                                proxy.AddStatement(new AsmStmtNode($"longjmp→{key}"));
+                                cfg.AddEdge(node, proxy, "longjmp");
+                            }
+                        }
+
+                        currentNode = null;
+                        return node;
+                    }
+                }
             }
 
             currentNode = node;

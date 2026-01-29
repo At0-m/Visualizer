@@ -280,4 +280,36 @@ namespace Visualizer
 
         public bool Convertible(TKType t1, TKType t2) => true;
     }
+
+    public class Macro
+    {
+        public string Name { get; }
+        public bool IsFuncLike { get; }
+        public bool HasIdents { get; }
+        public int Length => Body.Count;
+
+        public IReadOnlyList<Token> Body { get; }
+
+        public Macro(string name, IEnumerable<Token> body, bool funcLike)
+        {
+            Name = name;
+            Body = body.ToList().AsReadOnly();
+            IsFuncLike = funcLike;
+            HasIdents = Body.Any(t => t.Type == TokenType.IDENT);
+        }
+    }
+
+    public static class MacroTable
+    {
+        public const int INLINE_LIMIT = 4; 
+
+        private static readonly Dictionary<string, Macro> _map = new(StringComparer.Ordinal);
+
+        public static void Define(Macro m) => _map[m.Name] = m;
+
+        public static bool TryGet(string name, out Macro m) => _map.TryGetValue(name, out m);
+
+        public static bool Contains(string name) => TryGet(name, out _);
+        public static void Clear() => _map.Clear();
+    }
 }

@@ -50,6 +50,7 @@ namespace Visualizer
         {
             public int Ival;
             public float Fval;
+            public double Dval;
         }
 
         public Token()

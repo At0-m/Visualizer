@@ -19,7 +19,8 @@ namespace Visualizer
         private Button openFileButton;
         private Button parseButton;
         private PictureBox resultPictureBox;
-        private Panel imagePanel;          
+        private Panel imagePanel;
+        private CheckBox showUbNotes;
         private double _zoom = 1.0;       
         private const double ZoomStep = .10;
         private const double MinZoom = .10;
@@ -118,6 +119,16 @@ namespace Visualizer
                 WrapContents = false,
                 Padding = new Padding(0, 10, 20, 0)
             };
+            showUbNotes = new CheckBox
+            {
+                Text = "UB notes",
+                Checked = true,
+                AutoSize = true,
+                ForeColor = Color.White,
+                BackColor = ColPrimary,
+                Font = UiFont,
+                Padding = new Padding(0, 10, 10, 0)
+            };
 
             btnFlow.Controls.Add(parseButton);
             btnFlow.Controls.Add(openFileButton);
@@ -125,6 +136,7 @@ namespace Visualizer
             btnFlow.Controls.SetChildIndex(openFileButton, 0);
             btnFlow.Controls.AddRange(new Control[] { visualizeAstButton, visualizeCfgButton });
             header.Controls.Add(btnFlow);
+            btnFlow.Controls.Add(showUbNotes);
 
             codeEditor = new Scintilla
             {
@@ -174,6 +186,11 @@ int main() {
     }
     return x;
 }";
+            codeEditor.TextChanged += (_, __) => ClearParseCache();
+            const int INDIC_UB = 8;
+            codeEditor.Indicators[INDIC_UB].Style = IndicatorStyle.Squiggle;
+            codeEditor.Indicators[INDIC_UB].ForeColor = Color.Red;
+            void ClearUbHighlights() => codeEditor.IndicatorClearRange(0, codeEditor.TextLength);
             split.Dock = DockStyle.Fill;
             split.SplitterWidth = 3;
             split.BackColor = ColPrimary;
@@ -223,6 +240,18 @@ int main() {
             visualizeAstButton.Click += VisualizeAstButton_Click;
             visualizeCfgButton.Click += VisualizeCfgButton_Click;
             parseButton.Click += ParseButton_Click;
+        }
+        void HighlightUbLines()
+        {
+            foreach (var cfg in ProgramCFG.FunctionCFGs.Values)
+                foreach (var n in cfg.Nodes)
+                    foreach (var w in n.Warnings)
+                    {
+                        if (w.Line <= 0) continue;
+                        int start = codeEditor.Lines[w.Line - 1].Position;
+                        int end = start + codeEditor.Lines[w.Line - 1].Length;
+                        codeEditor.IndicatorFillRange(start, end - start);
+                    }
         }
         private Button MakeFlatButton(string text)
         {
@@ -308,9 +337,9 @@ int main() {
         }
         private void VisualizeAstButton_Click(object sender, EventArgs e)
         {
-            if (!isParsedOk || parsedRoot == null)
+            if (!EnsureParsed())
             {
-                infoLabel.Text = "It is impossible to build an AST because the parsing failed or failed";
+                infoLabel.Text = "It is impossible to build a AST because the parsing is unsuccessful";
                 return;
             }
 
@@ -337,7 +366,7 @@ int main() {
 
         private void VisualizeCfgButton_Click(object sender, EventArgs e)
         {
-            if (!isParsedOk || parsedRoot == null)
+            if (!EnsureParsed())
             {
                 infoLabel.Text = "It is impossible to build a CFG because the parsing is unsuccessful";
                 return;
@@ -361,8 +390,7 @@ int main() {
                 infoLabel.Text = "Error CFG:\n" + ex;
             }
         }
-
-        private void ParseButton_Click(object sender, EventArgs e)
+        private bool ParseCode()
         {
             var code = codeEditor.Text;
             File.WriteAllText("temp_input.c", code, Encoding.UTF8);
@@ -371,24 +399,26 @@ int main() {
             lastParser = null;
 
             using var lexer = new CLexer("temp_input.c");
-            var parser = new CParser(lexer);   
+            var parser = new CParser(lexer);
             parser.parse("outFileIrrelevant");
 
             if (parser.HasErrors)
             {
                 isParsedOk = false;
                 parsedRoot = null;
-
-                infoLabel.Text = "Parsing error:\n" + parser.ErrorLog.ToString();
-            }
-            else
-            {
-                isParsedOk = true;
-                parsedRoot = parser.ast.root;
-                infoLabel.Text = "Parsing completed successfully";
+                infoLabel.Text = "Parsing error:\n" + parser.ErrorLog;
+                return false;
             }
 
-            lastParser = parser;  
+            isParsedOk = true;
+            parsedRoot = parser.ast.root;
+            lastParser = parser;
+            infoLabel.Text = "Parsing completed successfully";
+            return true;
+        }
+        private void ParseButton_Click(object sender, EventArgs e)
+        {
+            ParseCode();
         }
         private void GenerateAstDot(ASTNode root, string dotFilePath)
         {
@@ -402,19 +432,32 @@ int main() {
             FileWriter.Write("}");
             FileWriter.Close();
         }
-
+        private bool EnsureParsed()
+        {
+            return (isParsedOk && parsedRoot != null) || ParseCode();
+        }
         private void GenerateCfgDot(ASTNode root, string dotFilePath)
         {
             ProgramCFG.BuildAll(root);
+
+            foreach (var (_, cfg) in ProgramCFG.FunctionCFGs)
+            {
+                var analyzer = new UBAnalyzer(cfg);
+                analyzer.Run();
+            }
+            HighlightUbLines();
 
             var sb = new StringBuilder();
             sb.AppendLine("digraph all_functions {");
 
             foreach (var (funcName, cfg) in ProgramCFG.FunctionCFGs)
-                sb.AppendLine(cfg.ToDot(funcName + "_", true));
+                sb.AppendLine(cfg.ToDot(funcName + "_", true, showUbNotes.Checked));
 
             sb.AppendLine("}");
 
+            int totalWarnings = ProgramCFG.FunctionCFGs.Values.Sum(c => c.Nodes.Count(n => n.Warnings.Count > 0));
+            infoLabel.Text = $"CFG построен. Найдено предупреждений UB: {totalWarnings}";
+            
             FileWriter.Open(dotFilePath);
             FileWriter.Write(sb.ToString());
             FileWriter.Close();
@@ -436,6 +479,17 @@ int main() {
         {
             base.OnFormClosed(e);
             baseImage?.Dispose();
+        }
+
+        private void ClearParseCache()
+        {
+            isParsedOk = false;
+            parsedRoot = null;
+
+            lastParser?.Dispose();
+            lastParser = null;
+
+            ProgramCFG.FunctionCFGs.Clear();
         }
     }
 }

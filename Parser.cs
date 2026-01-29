@@ -36,7 +36,8 @@ namespace Visualizer
             ["math.h"] = new[]{ "sin","cos","tan","sqrt","pow",
                                   "fabs","log","exp" },
             ["time.h"] = new[]{ "time","clock","difftime","asctime",
-                                  "ctime","strftime","localtime" }
+                                  "ctime","strftime","localtime" },
+            ["setjmp.h"] = new[] { "setjmp", "longjmp" }
         };
         public bool HasErrors { get; private set; }
         public StringBuilder ErrorLog { get; } = new StringBuilder();
@@ -60,6 +61,7 @@ namespace Visualizer
 
         protected void RequireDeclared(string name, int line)
         {
+            if (MacroTable.Contains(name)) return;
             if (symbols.Find(name) == symbols.NoObj)
                 ParsingError($"identifier '{name}' is not declared (line {line})");
         }
@@ -132,6 +134,14 @@ namespace Visualizer
                     ftype.FuncType = symbols.IntType;
 
                     symbols.Insert(f, ObjectKind.OK_FUNC, ftype);
+                }
+                if (header == "setjmp.h")
+                {
+                    var jbType = symbols.AllocType(TypeKind.TK_ARRAY);
+                    jbType.ElType = symbols.IntType;    
+                    jbType.Size = 1;
+
+                    symbols.Insert("jmp_buf", ObjectKind.OK_TYPE, jbType);
                 }
             }
         }

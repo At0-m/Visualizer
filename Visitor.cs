@@ -25,6 +25,10 @@ namespace Visualizer
             node.name.Accept(this);
             node.body.Accept(this);
         }
+        public virtual void Visit(NegateExprNode node)
+        {
+            node.expr.Accept(this);
+        }
 
         public virtual void Visit(FunctionDeclNode node)
         {

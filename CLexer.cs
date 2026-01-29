@@ -13,6 +13,38 @@ namespace Visualizer
         private Dictionary<string, TokenType> firMention;
         private StreamReader sr;
         public readonly List<string> Includes = new();
+        private readonly Stack<Token> _macroBuf = new();
+        private class CLexerFromString : CLexer
+        {
+            private bool _isEofReached;
+
+            public CLexerFromString(string src)
+                : base("")
+            {
+                StreamReader?.Dispose();
+                StreamReader = new StreamReader(new MemoryStream(
+                    Encoding.UTF8.GetBytes(src + "\n")));
+                CurrentChar = CurrentLine = CurrentColumn = 0;
+                _isEofReached = false;
+                GetNextChar();
+            }
+
+            public override TokenType Next(ref Token token)
+            {
+                if (_isEofReached)
+                {
+                    token.Type = TokenType.EOF;
+                    return token.Type;
+                }
+
+                var type = base.Next(ref token);
+
+                if (type == TokenType.EOF)
+                    _isEofReached = true;
+
+                return type;
+            }
+        }
         public CLexer(string s) : base(s)
         {
             sr = base.StreamReader;
@@ -100,56 +132,60 @@ namespace Visualizer
                 token.Name += (char)CurrentChar;
                 GetNextChar();
             }
-            token.Type = Keyword(token.Name);
-
+            bool expanded = false;
+            if (MacroTable.TryGet(token.Name, out var mac) && mac.Length <= MacroTable.INLINE_LIMIT && !mac.HasIdents)
+            {
+                PushMacroTokens(mac.Body);
+                var first = _macroBuf.Pop();
+                token.Type = first.Type;
+                token.Name = first.Name;
+                token.Info = first.Info;
+                expanded = true;
+            }
+            if(!expanded) token.Type = Keyword(token.Name);
         }
-
         private void ReadNumberLit(Token token)
         {
-            char[] str = new char[32];
-            int n = 0;
-            bool hex = false, normal = false;
+            var sb = new StringBuilder();
+            bool isFloat = false, forceFloat = false;
 
-            token.Type = TokenType.INT_LIT;
-            str[n++] = (char)CurrentChar;
-            GetNextChar();
-            //***
-            if (str[0] == '0' && CurrentChar == 'x')
-            {
-                GetNextChar();
-                hex = true;
-            }
-
-            while (char.IsLetterOrDigit((char)CurrentChar) || (hex && IsHexDigit((char)CurrentChar)))
-            {
-                str[n++] = (char)CurrentChar;
-                GetNextChar();
-            }
+            while (char.IsDigit((char)CurrentChar))
+            { sb.Append((char)CurrentChar); GetNextChar(); }
 
             if (CurrentChar == '.')
             {
-                normal = true;
-                GetNextChar();
+                isFloat = true;
+                sb.Append('.'); GetNextChar();
                 while (char.IsDigit((char)CurrentChar))
-                {
-                    str[n++] = (char)CurrentChar;
-                    GetNextChar();
-                }
+                { sb.Append((char)CurrentChar); GetNextChar(); }
             }
 
-            token.Info.Ival = hex ? Convert.ToInt32(new string(str, 2, n - 2), 16) :
-                                    int.Parse(new string(str, 0, n));
-            if (normal)
+            if (CurrentChar is 'e' or 'E')
+            {
+                isFloat = true;
+                sb.Append((char)CurrentChar); GetNextChar();
+                if (CurrentChar is '+' or '-')
+                { sb.Append((char)CurrentChar); GetNextChar(); }
+                while (char.IsDigit((char)CurrentChar))
+                { sb.Append((char)CurrentChar); GetNextChar(); }
+            }
+
+            if (CurrentChar is 'f' or 'F')
+            { forceFloat = true; isFloat = true; GetNextChar(); }
+
+            string lexeme = sb.ToString();
+            if (!isFloat)
+            {
+                token.Type = TokenType.INT_LIT;
+                token.Info.Ival = int.Parse(lexeme);
+            }
+            else
             {
                 token.Type = TokenType.FLOAT_LIT;
-                int mantissa = 0, count = 1;
-                foreach (char c in str[1..n])
-                {
-                    mantissa = mantissa * 10 + (c - '0');
-                    count *= 10;
-                }
-
-                token.Info.Fval = token.Info.Ival + (float)mantissa / count;
+                double d = double.Parse(lexeme,
+                                        System.Globalization.CultureInfo.InvariantCulture);
+                token.Info.Dval = d;
+                token.Info.Fval = (float)d;      
             }
         }
 
@@ -245,12 +281,6 @@ namespace Visualizer
             string word = "";
             while (char.IsLetter((char)CurrentChar)) { word += (char)CurrentChar; GetNextChar(); }
 
-            if (word != "include")
-            {
-                while (CurrentChar != '\n' && CurrentChar != -1) GetNextChar(); //it is necessary to throw an error, but perhaps there will be a define
-                return;
-            }
-
             while (char.IsWhiteSpace((char)CurrentChar)) GetNextChar();
             char open = (char)CurrentChar;
             if (open != '<' && open != '"') return;
@@ -269,10 +299,77 @@ namespace Visualizer
             while (CurrentChar != '\n' && CurrentChar != -1) GetNextChar();
         }
 
-        public TokenType Next(ref Token token)
+        private void HandleDirective()
         {
             while (char.IsWhiteSpace((char)CurrentChar)) GetNextChar();
 
+            string word = "";
+            while (char.IsLetter((char)CurrentChar)) { word += (char)CurrentChar; GetNextChar(); }
+
+            if (word == "include")
+            {
+                getIncludeLine();
+                return;
+            }
+
+            if (word == "define")
+            {
+                while (char.IsWhiteSpace((char)CurrentChar)) GetNextChar();
+
+                string name = "";
+                while (char.IsLetterOrDigit((char)CurrentChar) || CurrentChar == '_')
+                { name += (char)CurrentChar; GetNextChar(); }
+
+                bool funcLike = false;
+                while (char.IsWhiteSpace((char)CurrentChar)) GetNextChar();
+                if ((char)CurrentChar == '(')
+                {
+                    funcLike = true;
+                    int depth = 0;
+                    do
+                    {
+                        if (CurrentChar == '(') depth++;
+                        else if (CurrentChar == ')') depth--;
+                        GetNextChar();
+                    } while (depth > 0 && CurrentChar != -1);
+                }
+
+                var bodyStr = new StringBuilder();
+                while (CurrentChar != '\n' && CurrentChar != -1)
+                { bodyStr.Append((char)CurrentChar); GetNextChar(); }
+
+                var bodyTokens = new List<Token>();
+                using (var lex = new CLexerFromString(bodyStr.ToString()))
+                {
+                    var t = new Token();
+                    var temp = lex.Next(ref t);
+                    while (temp != TokenType.EOF && temp != TokenType.NONE)
+                    {
+                        bodyTokens.Add(new Token { Type = t.Type, Name = t.Name, Info = t.Info });
+                        temp = lex.Next(ref t);
+                    }
+                }
+
+                MacroTable.Define(new Macro(name, bodyTokens, funcLike));
+                return;
+            }
+
+            while (CurrentChar != '\n' && CurrentChar != -1) GetNextChar();
+        }
+        private void PushMacroTokens(IEnumerable<Token> toks)
+        {
+            foreach (var t in toks.Reverse())
+                _macroBuf.Push(t);
+        }
+
+        public virtual TokenType Next(ref Token token)
+        {
+            if (_macroBuf.Count > 0)
+            {
+                token = _macroBuf.Pop();
+                return token.Type;
+            }
+            while (char.IsWhiteSpace((char)CurrentChar)) GetNextChar();
             token.Line = CurrentLine;
             token.Column = CurrentColumn;
 
@@ -292,7 +389,7 @@ namespace Visualizer
                         break;
                     case '#':
                         GetNextChar();
-                        getIncludeLine();
+                        HandleDirective();
                         return Next(ref token);
                     case '&':
                         GetNextChar();
@@ -531,6 +628,16 @@ namespace Visualizer
 
                 }
             }
+
+            if (token.Type == TokenType.IDENT && MacroTable.TryGet(token.Name, out var mac) &&
+                mac.Length <= MacroTable.INLINE_LIMIT && !mac.HasIdents)
+            {
+                PushMacroTokens(mac.Body.Skip(1));
+                var first = mac.Body[0];
+                token.Type = first.Type;
+                token.Name = first.Name;
+                token.Info = first.Info;
+            }
             return token.Type;
         }
         public void Dispose()
@@ -538,4 +645,5 @@ namespace Visualizer
             sr?.Dispose();
         }
     }
+
 }

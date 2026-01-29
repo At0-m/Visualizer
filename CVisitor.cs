@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.Design;
+using System.IO;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Text;
@@ -84,6 +85,69 @@ namespace Visualizer
         public override void Visit(IntConstNode node)
         {
 
+            if (Global.isFunc)
+            {
+                string a = "a" + Global.ind.ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a}[label=" + '"' + $"{node.val}" + '"' + "];");
+            }
+            else if (Global.IsCall)
+            {
+                Global.dopstr += $"{node.val}";
+            }
+            else if (Global.IsTogoth)
+            {
+                string a = "a" + Global.ind.ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a}[label=" + '"' + Global.str + $"{node.val}" + '"' + "];");
+                Global.str = "";
+                Global.IsTogoth = false;
+
+            }
+            else if (Global.ContStr)
+            {
+                if (Global.LastStr != "")
+                {
+                    string a_l = "a" + (Global.ind - 1).ToString();
+                    Writing.WriteStr($"{a_l}[label=" + '"' + Global.LastStr + "=" + $"{node.val}" + '"' + "];");
+                    if (Global.IsCase == false) Global.LastStr = "";
+                }
+                else
+                {
+                    string a = "a" + Global.ind.ToString();
+                    string a_body = "a" + Global.BodyIndex[^1].ToString();
+                    Global.ind++;
+                    Writing.WriteStr($"{a}[label=" + '"' + Global.str + $"{node.val}" + '"' + "];");
+                    Writing.WriteStr($"{a_body} -> {a}");
+                    Global.str = "";
+                }
+            }
+
+            else if (Global.ifBody == false)
+            {
+                string a = "a" + Global.ind.ToString();
+                Global.ind++;
+                string a_next = "a" + Global.ind.ToString();
+                Writing.WriteStr($"{a}[label=" + '"' + $"{node.val}" + '"' + "];");
+                if (Global.isExpr)
+                {
+                    Writing.WriteStr($"{a} -> {a_next}");
+                }
+                Global.isExpr = true;
+            }
+            else
+            {
+                Writing.WriteStr(Global.LastStr);
+                string a = "a" + Global.ind.ToString();
+                Global.ind++;
+                string a_next = "a" + Global.ind.ToString();
+                Writing.WriteStr($"{a}[label=" + '"' + $"{node.val}" + '"' + "];");
+
+                Global.LastStr = ($"{a} -> {a_next}");
+            }
+        }
+        public override void Visit(NormalConstNode node)
+        {
             if (Global.isFunc)
             {
                 string a = "a" + Global.ind.ToString();
@@ -248,6 +312,12 @@ namespace Visualizer
                 Writing.WriteStr($"{a} -> {a_next}");
             }
         }
+        public override void Visit(NegateExprNode node)
+        {
+            node.expr.Accept(this);
+        }
+
+
         public override void Visit(SizeOfExprNode node)
         {
             string a = "a" + Global.ind.ToString();
@@ -342,7 +412,7 @@ namespace Visualizer
             string a_body = "a" + Global.BodyIndex[^1].ToString();
             Global.ind++;
             Writing.WriteStr($"{a}[label=" + '"' + Global.str + '"' + "];");
-            Writing.WriteStr($"{a_body} -> {a}");
+            if (Global.isExprFor) Writing.WriteStr($"{a_body} -> {a}");
             Global.str = "";
             Global.dopstr = "";
         }
@@ -477,9 +547,11 @@ namespace Visualizer
                 Global.ifBody = false;
                 Global.isExpr = false;
                 Global.isExprFor = false;
-                string a_init = "a" + Global.ind.ToString();
-                Writing.WriteStr($"{a} -> {a_init}" + "[label = " + '"' + "initialization" + '"' + "]; ");
+                Global.BodyIndex.Add(Global.ind - 1);
                 node.init.Accept(this);
+                string a_init = "a" + (Global.ind - 1).ToString();
+                Writing.WriteStr($"{a} -> {a_init}" + "[label = " + '"' + "initialization" + '"' + "]; ");
+                Global.BodyIndex.RemoveAt(Global.BodyIndex.Count - 1);
                 Global.isExprFor = true;
                 Global.ifBody = true;
                 Global.isExpr = true;
@@ -965,60 +1037,69 @@ namespace Visualizer
         }
         public override void Visit(PlusExprNode node)
         {
+            Global.ContStr = false;
             Global.isExpr = false;
             Global.ifBody = false;
-            Global.ContStr = false;
             int RemInd1 = Global.ind;
             Global.ind++;
             node.lhs.Accept(this);
             int RemInd2 = Global.ind;
+            if (Global.IsCall) Global.dopstr += "+";
             Global.isExpr = false;
-            Global.ContStr = false;
             Global.ifBody = false;
+            Global.ContStr = false;
             node.rhs.Accept(this);
             Global.ContStr = true;
-            string a = "a" + (RemInd1).ToString();
-            string a_next = "a" + (RemInd2).ToString();
-            string a_last = "a" + (RemInd1 + 1).ToString();
-            Global.ind++;
-            Writing.WriteStr($"{a} -> {a_next}");
-            Writing.WriteStr($"{a} -> {a_last}");
-            Writing.WriteStr($"{a}[label=" + '"' + "+" + '"' + "];");
-            if (Global.IsCallOp)
+            if (Global.IsCall == false)
             {
-                string a_body = "a" + Global.BodyIndex[^1].ToString();
-                Writing.WriteStr($"{a_body} -> {a}");
+                string a = "a" + (RemInd1).ToString();
+                string a_next = "a" + (RemInd2).ToString();
+                string a_last = "a" + (RemInd1 + 1).ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a} -> {a_next}");
+                Writing.WriteStr($"{a} -> {a_last}");
+                Writing.WriteStr($"{a}[label=" + '"' + "+" + '"' + "];");
+                if (Global.IsCallOp)
+                {
+                    string a_body = "a" + Global.BodyIndex[^1].ToString();
+                    Writing.WriteStr($"{a_body} -> {a}");
+                }
             }
         }
         public override void Visit(MinusExprNode node)
         {
+            Global.ContStr = false;
             Global.isExpr = false;
             Global.ifBody = false;
-            Global.ContStr = false;
             int RemInd1 = Global.ind;
             Global.ind++;
             node.lhs.Accept(this);
             int RemInd2 = Global.ind;
+            if (Global.IsCall) Global.dopstr += "-";
             Global.isExpr = false;
             Global.ifBody = false;
             Global.ContStr = false;
             node.rhs.Accept(this);
             Global.ContStr = true;
-            string a = "a" + (RemInd1).ToString();
-            string a_next = "a" + (RemInd2).ToString();
-            string a_last = "a" + (RemInd1 + 1).ToString();
-            Global.ind++;
-            Writing.WriteStr($"{a} -> {a_next}");
-            Writing.WriteStr($"{a} -> {a_last}");
-            Writing.WriteStr($"{a}[label=" + '"' + "-" + '"' + "];");
-            if (Global.IsCallOp)
+            if (Global.IsCall == false)
             {
-                string a_body = "a" + Global.BodyIndex[^1].ToString();
-                Writing.WriteStr($"{a_body} -> {a}");
+                string a = "a" + (RemInd1).ToString();
+                string a_next = "a" + (RemInd2).ToString();
+                string a_last = "a" + (RemInd1 + 1).ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a} -> {a_next}");
+                Writing.WriteStr($"{a} -> {a_last}");
+                Writing.WriteStr($"{a}[label=" + '"' + "-" + '"' + "];");
+                if (Global.IsCallOp)
+                {
+                    string a_body = "a" + Global.BodyIndex[^1].ToString();
+                    Writing.WriteStr($"{a_body} -> {a}");
+                }
             }
         }
         public override void Visit(MultExprNode node)
         {
+
             Global.ContStr = false;
             Global.isExpr = false;
             Global.ifBody = false;
@@ -1026,70 +1107,88 @@ namespace Visualizer
             Global.ind++;
             node.lhs.Accept(this);
             int RemInd2 = Global.ind;
+            if (Global.IsCall) Global.dopstr += "*";
             Global.isExpr = false;
             Global.ifBody = false;
             Global.ContStr = false;
             node.rhs.Accept(this);
             Global.ContStr = true;
-            string a = "a" + (RemInd1).ToString();
-            string a_next = "a" + (RemInd2).ToString();
-            string a_last = "a" + (RemInd1 + 1).ToString();
-            Global.ind++;
-            Writing.WriteStr($"{a} -> {a_next}");
-            Writing.WriteStr($"{a} -> {a_last}");
-            Writing.WriteStr($"{a}[label=" + '"' + "*" + '"' + "];");
-            if (Global.IsCallOp)
+            if (Global.IsCall == false)
             {
-                string a_body = "a" + Global.BodyIndex[^1].ToString();
-                Writing.WriteStr($"{a_body} -> {a}");
+                string a = "a" + (RemInd1).ToString();
+                string a_next = "a" + (RemInd2).ToString();
+                string a_last = "a" + (RemInd1 + 1).ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a} -> {a_next}");
+                Writing.WriteStr($"{a} -> {a_last}");
+                Writing.WriteStr($"{a}[label=" + '"' + "*" + '"' + "];");
+                if (Global.IsCallOp)
+                {
+                    string a_body = "a" + Global.BodyIndex[^1].ToString();
+                    Writing.WriteStr($"{a_body} -> {a}");
+                }
             }
         }
         public override void Visit(TruncDivExprNode node)
         {
+            Global.ContStr = false;
             Global.isExpr = false;
             Global.ifBody = false;
             int RemInd1 = Global.ind;
             Global.ind++;
             node.lhs.Accept(this);
             int RemInd2 = Global.ind;
+            if (Global.IsCall) Global.dopstr += "/";
             Global.isExpr = false;
             Global.ifBody = false;
+            Global.ContStr = false;
             node.rhs.Accept(this);
-            string a = "a" + (RemInd1).ToString();
-            string a_next = "a" + (RemInd2).ToString();
-            string a_last = "a" + (RemInd1 + 1).ToString();
-            Global.ind++;
-            Writing.WriteStr($"{a} -> {a_next}");
-            Writing.WriteStr($"{a} -> {a_last}");
-            Writing.WriteStr($"{a}[label=" + '"' + "/" + '"' + "];");
-            if (Global.IsCallOp)
+            Global.ContStr = true;
+            if (Global.IsCall == false)
             {
-                string a_body = "a" + Global.BodyIndex[^1].ToString();
-                Writing.WriteStr($"{a_body} -> {a}");
+                string a = "a" + (RemInd1).ToString();
+                string a_next = "a" + (RemInd2).ToString();
+                string a_last = "a" + (RemInd1 + 1).ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a} -> {a_next}");
+                Writing.WriteStr($"{a} -> {a_last}");
+                Writing.WriteStr($"{a}[label=" + '"' + "/" + '"' + "];");
+                if (Global.IsCallOp)
+                {
+                    string a_body = "a" + Global.BodyIndex[^1].ToString();
+                    Writing.WriteStr($"{a_body} -> {a}");
+                }
             }
         }
         public override void Visit(TruncModExprNode node)
         {
+            Global.ContStr = false;
             Global.isExpr = false;
             Global.ifBody = false;
             int RemInd1 = Global.ind;
             Global.ind++;
             node.lhs.Accept(this);
             int RemInd2 = Global.ind;
+            if (Global.IsCall) Global.dopstr += "%";
             Global.isExpr = false;
             Global.ifBody = false;
+            Global.ContStr = false;
             node.rhs.Accept(this);
-            string a = "a" + (RemInd1).ToString();
-            string a_next = "a" + (RemInd2).ToString();
-            string a_last = "a" + (RemInd1 + 1).ToString();
-            Global.ind++;
-            Writing.WriteStr($"{a} -> {a_next}");
-            Writing.WriteStr($"{a} -> {a_last}");
-            Writing.WriteStr($"{a}[label=" + '"' + "%" + '"' + "];");
-            if (Global.IsCallOp)
+            Global.ContStr = true;
+            if (Global.IsCall == false)
             {
-                string a_body = "a" + Global.BodyIndex[^1].ToString();
-                Writing.WriteStr($"{a_body} -> {a}");
+                string a = "a" + (RemInd1).ToString();
+                string a_next = "a" + (RemInd2).ToString();
+                string a_last = "a" + (RemInd1 + 1).ToString();
+                Global.ind++;
+                Writing.WriteStr($"{a} -> {a_next}");
+                Writing.WriteStr($"{a} -> {a_last}");
+                Writing.WriteStr($"{a}[label=" + '"' + "%" + '"' + "];");
+                if (Global.IsCallOp)
+                {
+                    string a_body = "a" + Global.BodyIndex[^1].ToString();
+                    Writing.WriteStr($"{a_body} -> {a}");
+                }
             }
         }
         public override void Visit(ArrayRefNode node)
@@ -1516,7 +1615,7 @@ namespace Visualizer
 
             }
         }
-}
+    }
 
 
     public static class FileWriter
@@ -1525,11 +1624,16 @@ namespace Visualizer
 
         public static void Open(string path)
         {
-            Close();                                       
-            writer = new StreamWriter(path, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-            writer.AutoFlush = true;                     
-        }
+            Close();  
 
+            var fs = new FileStream(path,
+                                    FileMode.Create,   
+                                    FileAccess.Write,
+                                    FileShare.Read);
+
+            writer = new StreamWriter(fs, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)) { AutoFlush = true};
+        }
+        
         public static void Write(string line)
         {
             if (writer == null)
@@ -1540,7 +1644,7 @@ namespace Visualizer
 
         public static void Close()
         {
-            writer?.Dispose();                          
+            writer?.Dispose();
             writer = null;
         }
     }

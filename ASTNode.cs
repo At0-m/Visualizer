@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -209,7 +210,7 @@ namespace Visualizer
         public NormalConstNode(float val)
         {
             this.val = val;
-            Type = ASTNodeType.ASTNT_NORMAL_TYPE;
+            Type = ASTNodeType.ASTNT_REAL_CONST;
         }
 
         public override void Accept(Visitor visitor) => visitor.Visit(this);
@@ -391,9 +392,8 @@ namespace Visualizer
                                 ? ObjectKind.OK_VAR_STATIC
                                 : ObjectKind.OK_VAR;
 
-            SOK obj = ast.stb.Insert(id, kind, tk);
-            if (obj == ast.stb.NoObj)
-                ast.Error(line, "redefinition of variable '%s'", id);
+            if (ast.stb.Find(id) == ast.stb.NoObj)
+                ast.stb.Insert(id, kind, tk);
         }
 
     }
@@ -626,8 +626,6 @@ namespace Visualizer
         }
 
         public override void Accept(Visitor visitor) => visitor.Visit(this);
-
-
     }
 
     public class ReturnStmtNode : ASTNode
